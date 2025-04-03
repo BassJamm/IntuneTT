@@ -7,8 +7,8 @@ function Connect-ToMGGraph {
         #   Install Required Modules   #
         ################################
         $requiredModules = @(
-            "Microsoft.Graph.Authentication", 
-            "Microsoft.Graph.Beta.Devices.CorporateManagement", 
+            "Microsoft.Graph.Authentication",
+            "Microsoft.Graph.Beta.Devices.CorporateManagement",
             "Microsoft.Graph.Beta.DeviceManagement"
         )
         foreach ($module in $requiredModules) {
@@ -40,11 +40,11 @@ function Connect-ToMGGraph {
     }
     End {
         Write-Host "You are connected!"
-        Get-MgContext | Select Account, @{ l = 'PermissionScopes'; e = { $_.Scopes -join "`n" } } | fl
+        Get-MgContext | Select-Object Account, @{ l = 'PermissionScopes'; e = { $_.Scopes -join "`n" } } | Format-List
         Start-Sleep -Seconds 2 # More pleasent experience for end user.
         return
     }
-    
+
 }
 #endRegion
 
@@ -106,6 +106,72 @@ function Get-MDMDiagnostics {
         Write-Host "Completed Get-MDMDiagnostics flow" -ForegroundColor Green
         return
     }
-    
+
+}
+#endRegion
+
+######################
+#   Parse IME Logs   #
+######################
+function ParseIMELogs {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string]
+        $fileName
+    )
+
+    Begin {
+        $pattern = '<!\[LOG\[(?<Message>.*?)\]LOG\]!><time="(?<Time>[\d:.]+)" date="(?<Date>\d{1,2}-\d{1,2}-\d{4})"(?<Misc>.*?)>'
+        $rawLogs = (Get-Content -Path $fileName -Raw) -join "`r`n"
+        $matchedStrings = [regex]::Matches($rawLogs,$pattern)
+        $nonMatchedStrings = [regex]::Matches($rawLogs, '^(?!.*$pattern).*')
+        $matchedStringsArray = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $count = 0
+    }
+
+    Process {
+        foreach($string in $matchedStrings){
+            $count++
+            Write-Progress -PercentComplete ($count / $matchedStrings.count * 100) `
+            -Status "Processing Matches" `
+            -Activity "Processing match $count of $($matchedStrings.Count)"
+
+            $matchedStringsArray.Add([PSCustomObject]@{
+                    Date    = $string.Groups["Date"].Value
+                    Time    = $string.Groups["Time"].Value
+                    Message = $string.Groups["Message"].Value
+                    Misc    = $string.Groups["Misc"].Value
+                })
+        }
+        Write-Progress -Activity "Processing Matches" -Completed
+    }
+
+    End {
+        if($nonMatchedStrings.count -gt 0){
+            $nonMatchedStrings | Export-csv -path "$env:temp\IMENonMatchedStrings.csv" -NoTypeInformation
+             Write-Host "Non-matching strings exported to $env:temp\IMENonMatchedStrings.csv"
+         }
+
+        return $matchedStringsArray
+    }
+}
+#endRegion
+
+###################################
+#   Search for Strings in Files   #
+###################################
+function Find-FileWithReferenceStrings {
+    param(
+        [string]$searchString,
+        [string]$folderpath = 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs'
+    )
+
+    (Get-ChildItem -Path $folderpath | Where-Object { -not $_.PSIsContainer }).FullName | ForEach-Object {
+        $file = $_
+        if ((Get-Content -Path $file | Select-String -SimpleMatch $searchString).Count -gt 0) {
+            return $file
+        }
+    }
 }
 #endRegion
