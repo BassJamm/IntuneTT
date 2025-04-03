@@ -1,4 +1,43 @@
 
+<#PSScriptInfo
+
+.VERSION 0.0.1
+
+.GUID b135bd10-596c-43aa-87ce-e75436382ffe
+
+.AUTHOR Will Hornsby
+
+.COMPANYNAME
+
+.COPYRIGHT
+
+.TAGS
+
+.LICENSEURI
+
+.PROJECTURI
+
+.ICONURI
+
+.EXTERNALMODULEDEPENDENCIES
+
+.REQUIREDSCRIPTS
+
+.EXTERNALSCRIPTDEPENDENCIES
+
+.RELEASENOTES
+
+.PRIVATEDATA
+
+#>
+
+<#
+
+.DESCRIPTION
+ Entry point for the module
+
+#>
+
 ###################################
 #   Create Folder Paths needed    #
 ###################################
@@ -51,16 +90,16 @@ do {
     Write-Host " "
     $choice = Read-Host "Please make a selection"
     switch ($choice) {
-        "e" { 
+        "e" {
             Invoke-Item 'C:\Temp\IntuneTroubleshootingTool'
         }"0"{
             Connect-ToMGGraph
         }
-        "1" { 
+        "1" {
             Get-MDMDiagnostics
-        }"2" { 
+        }"2" {
             "Option 2"
-        }"q" { 
+        }"q" {
             return
         }
         Default {}
