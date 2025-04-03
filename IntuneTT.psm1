@@ -21,7 +21,7 @@ function Connect-ToMGGraph {
                 }
             }
             else {
-                Write-Host "Module $module is already installed."
+                Write-Output "Module $module is already installed."
             }
         }
         #endregion
@@ -33,13 +33,13 @@ function Connect-ToMGGraph {
         ########################
         Start-Sleep -Seconds 2 # More pleasent experience for end user.
         if ($null -eq (Get-MgContext).Account) {
-            Write-Host "Connecting to Graph now, a separate window should launch..." -ForegroundColor Yellow
+            Write-Output "Connecting to Graph now, a separate window should launch..."
             Connect-MgGraph -NoWelcome
         }
         #endRegion
     }
     End {
-        Write-Host "You are connected!"
+        Write-Output "You are connected!"
         Get-MgContext | Select-Object Account, @{ l = 'PermissionScopes'; e = { $_.Scopes -join "`n" } } | Format-List
         Start-Sleep -Seconds 2 # More pleasent experience for end user.
         return
@@ -51,7 +51,7 @@ function Connect-ToMGGraph {
 #############################
 #   Collect MDM Diag Logs   #
 #############################
-function Get-MDMDiagnostics {
+function Get-MDMDiagnosticInfo {
     Begin {
         $runTime = Get-Date -uFormat "%H-%M-%S"
         $outPutFilename = "mdmdiags-$runTime.txt"
@@ -65,15 +65,15 @@ function Get-MDMDiagnostics {
         ###########################
 
         # Collect diag logs
-        Write-Host "Collecting Autopilot Diagnostics" -ForegroundColor Yellow
+        Write-Output "Collecting Autopilot Diagnostics"
         Start-Process $mdmDiagTool -ArgumentList $processArgs -NoNewWindow -Wait
         Start-Sleep -Seconds 15
 
         if (Test-Path "C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$diagFileName") {
-            Write-Host "Diagnostic Logs collected successfully" -ForegroundColor Yellow
+            Write-Output "Diagnostic Logs collected successfully"
         }
         else {
-            Write-Host "Error collecting Diagnostic Logs, please try again." -ForegroundColor Red
+            Write-Output "Error collecting Diagnostic Logs, please try again."
             Return
         }
         #endRegion
@@ -83,12 +83,12 @@ function Get-MDMDiagnostics {
         #################################
         if (!(Get-InstalledScript Get-AutopilotDiagnosticsCommunity)) {
             try {
-                Write-Host "Installing Get-AutopilotDiagnosticsCommunity script..."
+                Write-Output "Installing Get-AutopilotDiagnosticsCommunity script..."
                 Install-Script -Name Get-AutopilotDiagnosticsCommunity -Force
                 $env:PATH += ";C:\Program Files\PowerShell\Scripts" # Manually update path to save restarting session.
             }
             catch {
-                Write-Host "Error Downloading Script."
+                Write-Output "Error Downloading Script."
                 Return
             }
         }
@@ -97,13 +97,13 @@ function Get-MDMDiagnostics {
         ######################
         #   Run the Script   #
         ######################
-        Write-Host "Exporting all data here, $outPutFilename" -ForegroundColor Yellow
+        Write-Output "Exporting all data here, $outPutFilename"
         Get-AutopilotDiagnosticsCommunity.ps1 -ZIPFile "C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$diagFileName" -Online *>&1 | `
             Tee-Object -FilePath "C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$outPutFilename"
         #endRegion
     }
     End {
-        Write-Host "Completed Get-MDMDiagnostics flow" -ForegroundColor Green
+        Write-Output "Completed Get-MDMDiagnostics flow"
         return
     }
 
@@ -150,10 +150,10 @@ function ParseIMELogs {
     End {
         if($nonMatchedStrings.count -gt 0){
             $nonMatchedStrings | Export-csv -path "$env:temp\IMENonMatchedStrings.csv" -NoTypeInformation
-             Write-Host "Non-matching strings exported to $env:temp\IMENonMatchedStrings.csv"
+             Write-Output "Non-matching strings exported to $env:temp\IMENonMatchedStrings.csv"
          }
 
-        return $matchedStringsArray
+        return $matchedStringsArray.ToArray()
     }
 }
 #endRegion
@@ -161,7 +161,7 @@ function ParseIMELogs {
 ###################################
 #   Search for Strings in Files   #
 ###################################
-function Find-FileWithReferenceStrings {
+function Find-StringInFile {
     param(
         [string]$searchString,
         [string]$folderpath = 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs'
