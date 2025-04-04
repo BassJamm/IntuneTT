@@ -181,3 +181,23 @@ function Find-StringInFile {
     }
 }
 #endRegion
+
+#############################
+#   Get Win32 App Results   #
+#############################
+
+function Get-Win32AppReport {
+
+        if(Get-InstalledScript -Name Get-Win32AppResult){
+            Get-Win32AppResult.ps1
+        } else {
+            try {
+                Install-Script -Name Get-Win32AppResult
+            }
+            catch {
+                $_
+            }
+        }
+
+}
+#endRegion
