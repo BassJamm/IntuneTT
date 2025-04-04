@@ -2,10 +2,12 @@
 #   Auth with Microsoft Graph   #
 #################################
 function Connect-ToMGGraph {
+    <#
+    .SYNOPSIS
+    Will check for correct modules and try to connect to graph ready for other commands to execute.
+    #>
     Begin {
-        ################################
         #   Install Required Modules   #
-        ################################
         $requiredModules = @(
             "Microsoft.Graph.Authentication",
             "Microsoft.Graph.Beta.Devices.CorporateManagement",
@@ -28,9 +30,7 @@ function Connect-ToMGGraph {
 
     }
     Process {
-        ########################
         #   Connect To Graph   #
-        ########################
         Start-Sleep -Seconds 2 # More pleasent experience for end user.
         if ($null -eq (Get-MgContext).Account) {
             Write-Output "Connecting to Graph now, a separate window should launch..."
@@ -52,6 +52,11 @@ function Connect-ToMGGraph {
 #   Collect MDM Diag Logs   #
 #############################
 function Get-MDMDiagnosticInfo {
+    <#
+    .SYNOPSIS
+    Will collect the MDM Diag Logs and then parse them using the
+    Get-AutopilotDiagnosticsCommunity script.
+    #>
     Begin {
         $runTime = Get-Date -uFormat "%H-%M-%S"
         $outPutFilename = "mdmdiags-$runTime.txt"
@@ -60,11 +65,7 @@ function Get-MDMDiagnosticInfo {
         $processArgs = "-area Autopilot -zip C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$diagFileName"
     }
     Process {
-        ###########################
         #	Collect Diagnostics   #
-        ###########################
-
-        # Collect diag logs
         Write-Output "Collecting Autopilot Diagnostics"
         Start-Process $mdmDiagTool -ArgumentList $processArgs -NoNewWindow -Wait
         Start-Sleep -Seconds 15
@@ -78,9 +79,7 @@ function Get-MDMDiagnosticInfo {
         }
         #endRegion
 
-        #################################
         #	Download Community Script   #
-        #################################
         if (!(Get-InstalledScript Get-AutopilotDiagnosticsCommunity)) {
             try {
                 Write-Output "Installing Get-AutopilotDiagnosticsCommunity script..."
@@ -94,9 +93,7 @@ function Get-MDMDiagnosticInfo {
         }
         #endRegion
 
-        ######################
         #   Run the Script   #
-        ######################
         Write-Output "Exporting all data here, $outPutFilename"
         Get-AutopilotDiagnosticsCommunity.ps1 -ZIPFile "C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$diagFileName" -Online *>&1 | `
             Tee-Object -FilePath "C:\Temp\IntuneTroubleshootingTool\AutopilotDiag\$outPutFilename"
@@ -114,6 +111,12 @@ function Get-MDMDiagnosticInfo {
 #   Parse IME Logs   #
 ######################
 function ParseIMELogs {
+    <#
+    .SYNOPSIS
+    Will attempt to parse the IME logs that you pass into it.
+    .NOTES
+    This does need teaking, MS have added new log files and some new formats.
+    #>
     [CmdletBinding()]
     param (
         [Parameter()]
@@ -162,6 +165,9 @@ function ParseIMELogs {
 #   Search for Strings in Files   #
 ###################################
 function Find-StringInFile {
+    <#
+    Will find the files that contain the string you parse it.
+    #>
     param(
         [string]$searchString,
         [string]$folderpath = 'C:\ProgramData\Microsoft\IntuneManagementExtension\Logs'
