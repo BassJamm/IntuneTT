@@ -127,18 +127,18 @@ function ParseIMELogs {
     Begin {
         $pattern = '<!\[LOG\[(?<Message>.*?)\]LOG\]!><time="(?<Time>[\d:.]+)" date="(?<Date>\d{1,2}-\d{1,2}-\d{4})"(?<Misc>.*?)>'
         $rawLogs = (Get-Content -Path $fileName -Raw) -join "`r`n"
-        $matchedStrings = [regex]::Matches($rawLogs,$pattern)
+        $matchedStrings = [regex]::Matches($rawLogs, $pattern)
         $nonMatchedStrings = [regex]::Matches($rawLogs, '^(?!.*$pattern).*')
         $matchedStringsArray = [System.Collections.Generic.List[PSCustomObject]]::new()
         $count = 0
     }
 
     Process {
-        foreach($string in $matchedStrings){
+        foreach ($string in $matchedStrings) {
             $count++
             Write-Progress -PercentComplete ($count / $matchedStrings.count * 100) `
-            -Status "Processing Matches" `
-            -Activity "Processing match $count of $($matchedStrings.Count)"
+                -Status "Processing Matches" `
+                -Activity "Processing match $count of $($matchedStrings.Count)"
 
             $matchedStringsArray.Add([PSCustomObject]@{
                     Date    = $string.Groups["Date"].Value
@@ -151,10 +151,10 @@ function ParseIMELogs {
     }
 
     End {
-        if($nonMatchedStrings.count -gt 0){
+        if ($nonMatchedStrings.count -gt 0) {
             $nonMatchedStrings | Export-csv -path "$env:temp\IMENonMatchedStrings.csv" -NoTypeInformation
-             Write-Output "Non-matching strings exported to $env:temp\IMENonMatchedStrings.csv"
-         }
+            Write-Output "Non-matching strings exported to $env:temp\IMENonMatchedStrings.csv"
+        }
 
         return $matchedStringsArray.ToArray()
     }
@@ -166,6 +166,7 @@ function ParseIMELogs {
 ###################################
 function Find-StringInFile {
     <#
+    .SYNOPSIS
     Will find the files that contain the string you parse it.
     #>
     param(
@@ -187,17 +188,118 @@ function Find-StringInFile {
 #############################
 
 function Get-Win32AppReport {
+    <#
+    .SYNOPSIS
+    Will attempt to install Get-Win32AppResults Script from PSGallery and run it.
+    #>
+    if (Get-InstalledScript -Name Get-Win32AppResult) {
+        Get-Win32AppResult.ps1
+    }
+    else {
+        try {
+            Install-Script -Name Get-Win32AppResult
+        }
+        catch {
+            $_
+        }
+    }
 
-        if(Get-InstalledScript -Name Get-Win32AppResult){
-            Get-Win32AppResult.ps1
-        } else {
+}
+#endRegion
+
+#################################
+#   Check for pending Reboots   #
+#################################
+function Get-PendingReboot {
+    <#
+    .SYNOPSIS
+    Will attempt to check for any pending reboots.
+    #>
+    $keys = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing",
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update",
+        "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager"
+    )
+
+    $rebootRequired = $false
+
+    foreach ($key in $keys) {
+        if (Test-Path $key) {
+            $properties = Get-ItemProperty -Path $key -ErrorAction SilentlyContinue
+            if ($properties -match "RebootPending|RebootRequired|PendingFileRenameOperations") {
+                Write-Output "Reboot required due to: $key"
+                $rebootRequired = $true
+            }
+        }
+    }
+
+    if (-not $rebootRequired) {
+        Write-Output "No reboot required."
+    }
+}
+#endregion
+
+#################################
+#   Get App Assignment Groups   #
+#################################
+function Get-WinAppAssignments {
+    <#
+    .SYNOPSIS
+        Will attempt to install the Get-IntuneAppAssignments and run it.
+    #>
+    if (Get-InstalledScript -Name Get-IntuneAppAssignments) {
+        Get-IntuneAppAssignments
+    }
+    else {
+        try {
+            Install-Script -Name Get-IntuneAppAssignments
+        }
+        catch {
+            $_
+        }
+    }
+}
+#endRegion
+
+#################################################
+#   Install Required Microsoft Graph Modules   #
+#################################################
+function Install-RequiredMGGraphModules {
+    <#
+        .SYNOPSIS
+        Will attempt to install the modules required to run this module and the most used ones.
+    #>
+
+    $moduleList = @(
+        "Microsoft.Graph.Authentication",
+        "Microsoft.Graph.DeviceManagement",
+        "Microsoft.Graph.Beta.Devices.CorporateManagement",
+        "Microsoft.Graph.Beta.DeviceManagement",
+        "Microsoft.Graph.Compliance,"
+        "Microsoft.Graph.Users",
+        "Microsoft.Graph.Groups"
+    )
+
+    Read-Host -Prompt "This will check for and install the required modules for the IntuneTT package... Press Enter to continue"
+    $isPSGalleryTrusted = Read-Host -Prompt "Are you happy to mark the PSGallery a trusted repository? (Y/N) this removes the confirmation prompt for each install."
+
+    switch ($isPSGalleryTrusted) {
+        "Y" { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }
+        "N" { Write-Output "Gallery not trusted, confirm installation for each module" }
+        Default {}
+    }
+
+    foreach($module in $moduleList){
+        if(!(Get-installedModule $module -ErrorAction SilentlyContinue)){
             try {
-                Install-Script -Name Get-Win32AppResult
+                Write-Output "Trying to Install module. $module"
+                Install-Module $module -Confirm:$false
             }
             catch {
                 $_
             }
         }
-
+        Write-Output "$module already installed"
+    }
 }
 #endRegion
