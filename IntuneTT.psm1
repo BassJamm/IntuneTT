@@ -290,8 +290,8 @@ function Install-RequiredMGGraphModules {
         Default {}
     }
 
-    foreach($module in $moduleList){
-        if(!(Get-installedModule $module -ErrorAction SilentlyContinue)){
+    foreach ($module in $moduleList) {
+        if (!(Get-installedModule $module -ErrorAction SilentlyContinue)) {
             try {
                 Write-Output "Trying to Install module. $module"
                 Install-Module $module -Confirm:$false
@@ -301,6 +301,42 @@ function Install-RequiredMGGraphModules {
             }
         }
         Write-Output "$module already installed"
+    }
+}
+#endRegion
+
+###################################
+#   Check Attestation Readiness   #
+###################################
+function Get-AttestationReadiness {
+    <#
+    .SYNOPSIS
+    Will attempt to run the Autopilottestattestation script created by RudyOoms.
+    https://www.powershellgallery.com/packages/Autopilottestattestation/1.0.0.34
+    #>
+    
+    Begin {
+        $outPutFilename = "attestationtest-$(Get-Date -uFormat "%H-%M-%S").txt"
+
+        #   Check and import the module   #
+        if (!(Get-Module -ListAvailable -Name Autopilottestattestation -ErrorAction SilentlyContinue)) {
+            Write-Host "Requred Module is not installed, installing now..." -ForegroundColor Yellow
+            try {
+                Install-Module -Name Autopilottestattestation -Scope CurrentUser
+            }
+            catch {
+                $_
+                return
+            }
+        }
+    }
+    Process {
+        Write-Host "Executing attestattion testing command..." -ForegroundColor Yellow
+        # No try catch due to deprecated wmic commands, seems to break the try-catch process even with exception handling.
+        Test-AutopilotAttestation *>&1 | Tee-Object -FilePath "C:\Temp\Wintune\Reports\$outPutFilename"
+    }
+    End {
+        Write-Host "Exported console output to C:\Temp\Wintune\Reports\$outPutFilename" -ForegroundColor Yellow
     }
 }
 #endRegion
