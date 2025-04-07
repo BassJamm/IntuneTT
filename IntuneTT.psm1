@@ -1,3 +1,4 @@
+
 #################################
 #   Auth with Microsoft Graph   #
 #################################
@@ -247,7 +248,7 @@ function Get-WinAppAssignments {
     .SYNOPSIS
         Will attempt to install the Get-IntuneAppAssignments and run it.
     #>
-    if (Get-InstalledScript -Name Get-IntuneAppAssignments) {
+    if (Get-InstalledScript -Name Get-IntuneAppAssignments -ErrorAction SilentlyContinue) {
         Get-IntuneAppAssignments
     }
     else {
@@ -275,7 +276,7 @@ function Install-RequiredMGGraphModules {
         "Microsoft.Graph.DeviceManagement",
         "Microsoft.Graph.Beta.Devices.CorporateManagement",
         "Microsoft.Graph.Beta.DeviceManagement",
-        "Microsoft.Graph.Compliance,"
+        "Microsoft.Graph.Compliance"
         "Microsoft.Graph.Users",
         "Microsoft.Graph.Groups"
     )
