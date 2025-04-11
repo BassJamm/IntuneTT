@@ -52,7 +52,7 @@ function Connect-ToMGGraph {
 #############################
 #   Collect MDM Diag Logs   #
 #############################
-function Get-MDMDiagnosticInfo {
+function Get-AutopilotDiagnosticInfo {
     <#
     .SYNOPSIS
     Will collect the MDM Diag Logs and then parse them using the
@@ -339,4 +339,112 @@ function Get-AttestationReadiness {
         Write-Host "Exported console output to C:\Temp\Wintune\Reports\$outPutFilename" -ForegroundColor Yellow
     }
 }
+#endRegion
+
+###############################
+#   Collect MDM Diagnostics   #
+###############################
+function Get-MDMDiagnostics {
+    <#
+        .SYNOPSIS
+        Will collect all of the MDM Diag Logs.
+        #>
+    Begin {
+        $outputPath = "C:\Temp\IntuneTroubleshootingTool\MDMDiags\Diagnostics-$(Get-Date -uFormat "%H-%M-%S").zip"
+        $mdmDiagTool = "C:\windows\System32\MdmDiagnosticsTool.exe"
+        $processArgs = "-area `"DeviceEnrollment;DeviceProvisioning;ManagementService;PushNotification;WnsProvider;Autopilot`" -zip $outputPath"
+    }
+    Process {
+        #	Collect Diagnostics   #
+        Write-Output "Collecting Autopilot Diagnostics"
+        Start-Process $mdmDiagTool -ArgumentList $processArgs -NoNewWindow -Wait
+        Start-Sleep -Seconds 5
+    
+        if (Test-Path $outputPath) {
+            Write-Output "Diagnostic Logs collected successfully"
+        }
+        else {
+            Write-Output "Error collecting Diagnostic Logs, please try again."
+            Return
+        }
+        #endRegion
+    }
+    End {
+        Write-Output "Completed Get-MDMDiagnostics flow"
+        return
+    }
+}
+#endRegion
+
+##########################################
+#   Delete Win32App Keys from Registry   #
+##########################################
+function Remove-Win32AppKeys {
+    <#
+    .SYNOPSIS
+    Will attempt to remove an app from the win32app registry key paths. Which will force the IME to update its status.
+    This is akin to gpupdate for apps, essentially allowing you to force required and available apps to update their status.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$appId
+    )
+    Begin {
+        $win32AppKeys = Get-ChildItem -path HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps
+        $removeTheString = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\IntuneManagementExtension"
+        $keysForDeletion = @()
+        $propertiesForDeletion = @()
+    }
+    Process {
+
+        foreach ($key in $win32AppKeys[0]) {
+            $subkeys = Get-ChildItem -path ( $key.PSPath -replace "Microsoft.PowerShell.Core\\", "" ) -Recurse
+
+            foreach ($subkey in $subkeys[0]) {
+                $currentKey = Split-Path $subkey.Name -Leaf
+                $getProperties = Get-ItemProperty ($subkey.PSPath -replace "Microsoft.PowerShell.Core\\", "")
+                $excludePSProperties = $getProperties.PSObject.Properties | Where-Object Name -notlike "PS*"
+            
+                if ($currentKey -like "$appId*") {
+                    Write-Output "Found Key: $( $subkey.Name -replace $removeTheString )"
+                    $keysForDeletion += $subkey.Name
+                }
+                elseif ($excludePSProperties.Name -contains $appId) {
+                    Write-Output "Found property under: $( $subkey.Name -replace $removeTheString )"
+                    $propertiesForDeletion += [PSCustomObject]@{
+                        Path = $subkey.Name
+                        Name = $appId
+                    }
+                }
+
+            }
+        }
+
+    }
+    End {
+        $deletePrompt = Read-Host -Prompt "Happy to delete? (Y/N)"
+        if ($deletePrompt -eq 'n') {
+            Write-Output "Cancelling Delete operation"
+            return
+        }
+    
+        foreach ($keyItem in $keysForDeletion) {
+            Remove-Item -Path ($keyItem -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Confirm:$false -Recurse
+        }
+    
+        foreach ($propItem in $propertiesForDeletion) {
+            Remove-ItemProperty -Path ($propItem.Path -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Name $propItem.Name
+        }
+
+        Write-Output "All refrences found deleted"
+    }
+}
+<#
+(gci -path HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps -Recurse | `
+    ? Name -match "stringhere").PSPath | % {
+        Write-Host "Deleting key, $_ "
+        Remove-Item -Path $_ -Recurse | out-null
+}
+#>
 #endRegion

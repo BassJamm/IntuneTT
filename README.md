@@ -5,7 +5,7 @@ Intune Troubleshooting Toolkit - To help with troubleshooting policy, app and ot
 I did not make all of the scripts within this, the idea of the tool is to collect all the useful stuff for troubleshooting
 Intune devices into one space.
 
-Install the module using the ps gallery, `Install-Module -Name IntuneTT`
+Install the module using the ps gallery, `Install-Module -Name IntuneTT`.
 
 ## Features To Add
 
