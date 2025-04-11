@@ -2,52 +2,21 @@
 
 Intune Troubleshooting Toolkit - To help with troubleshooting policy, app and other such deployments.
 
-This is in ALPHA - the full module will be uploaded soon.
-
 I did not make all of the scripts within this, the idea of the tool is to collect all the useful stuff for troubleshooting
 Intune devices into one space.
 
-## Publishing Process
+Install the module using the ps gallery, `Install-Module -Name IntuneTT`
 
-### 1. Local Testing
+## Features To Add
 
-```powershell
-# Remove any old version from the session
-Remove-Module IntuneTT -ErrorAction SilentlyContinue
+- [ ] Export all MDMDiagnostic Data for review.[See here](#export-all-mdmd-diags).
+- [X] Appliation Assignment Report.
+- [X] Attestation Readiness Script.
+- [X] Win32 App Report.
+- [X] Collect Autopilot Diagnostic Information.
+- [X] Install all required MG Graph modules for troubleshooting issues.
+- [X] Auth with MG Graph with scopes required to troubleshoot issues.
 
-# Import the module
-Import-Module IntuneTT -Force
+### Export All MDMD Diags
 
-# Verify module is loaded
-Get-Module IntuneTT
-
-# Check exported functions
-Get-Command -Module IntuneTT
-```
-
-### 2. Pre-Publish Checks
-
-Review any errors.
-
-```powershell
-Invoke-ScriptAnalyzer -Path .\IntuneTT.psm1 | ft -a
-```
-
-Update release Information and Version
-
-- Edit the .psd1 file.
-  - Release Information and Version
-
-Confirm exported functions and information.
-
-```powershell
-Test-ModuleManifest .\IntuneTT.psd1
-```
-
-### 3. Publish
-
-WhatIf
-
-`Publish-Module -Path .\ -Repository PSGallery -NuGetApiKey "YOUR_API_KEY" -WhatIf`
-
-`Publish-Module -Path .\ -Repository PSGallery -NuGetApiKey "YOUR_API_KEY"`
+This command, `mdmdiagnosticstool.exe -area "DeviceEnrollment;DeviceProvisioning;ManagementService;PushNotification;WnsProvider;Autopilot" -zip 'C:\Temp\MDMDiag.zip'
