@@ -262,49 +262,6 @@ function Get-WinAppAssignments {
 }
 #endRegion
 
-#################################################
-#   Install Required Microsoft Graph Modules   #
-#################################################
-function Install-RequiredMGGraphModules {
-    <#
-        .SYNOPSIS
-        Will attempt to install the modules required to run this module and the most used ones.
-    #>
-
-    $moduleList = @(
-        "Microsoft.Graph.Authentication",
-        "Microsoft.Graph.DeviceManagement",
-        "Microsoft.Graph.Beta.Devices.CorporateManagement",
-        "Microsoft.Graph.Beta.DeviceManagement",
-        "Microsoft.Graph.Compliance"
-        "Microsoft.Graph.Users",
-        "Microsoft.Graph.Groups"
-    )
-
-    Read-Host -Prompt "This will check for and install the required modules for the IntuneTT package... Press Enter to continue"
-    $isPSGalleryTrusted = Read-Host -Prompt "Are you happy to mark the PSGallery a trusted repository? (Y/N) this removes the confirmation prompt for each install."
-
-    switch ($isPSGalleryTrusted) {
-        "Y" { Set-PSRepository -Name PSGallery -InstallationPolicy Trusted }
-        "N" { Write-Output "Gallery not trusted, confirm installation for each module" }
-        Default {}
-    }
-
-    foreach ($module in $moduleList) {
-        if (!(Get-installedModule $module -ErrorAction SilentlyContinue)) {
-            try {
-                Write-Output "Trying to Install module. $module"
-                Install-Module $module -Confirm:$false
-            }
-            catch {
-                $_
-            }
-        }
-        Write-Output "$module already installed"
-    }
-}
-#endRegion
-
 ###################################
 #   Check Attestation Readiness   #
 ###################################
@@ -314,7 +271,7 @@ function Get-AttestationReadiness {
     Will attempt to run the Autopilottestattestation script created by RudyOoms.
     https://www.powershellgallery.com/packages/Autopilottestattestation/1.0.0.34
     #>
-    
+
     Begin {
         $outPutFilename = "attestationtest-$(Get-Date -uFormat "%H-%M-%S").txt"
 
@@ -344,7 +301,7 @@ function Get-AttestationReadiness {
 ###############################
 #   Collect MDM Diagnostics   #
 ###############################
-function Get-MDMDiagnostics {
+function Get-AllMDMDiagnosticInfo {
     <#
         .SYNOPSIS
         Will collect all of the MDM Diag Logs.
@@ -359,7 +316,7 @@ function Get-MDMDiagnostics {
         Write-Output "Collecting Autopilot Diagnostics"
         Start-Process $mdmDiagTool -ArgumentList $processArgs -NoNewWindow -Wait
         Start-Sleep -Seconds 5
-    
+
         if (Test-Path $outputPath) {
             Write-Output "Diagnostic Logs collected successfully"
         }
@@ -382,69 +339,71 @@ function Get-MDMDiagnostics {
 function Remove-Win32AppKeys {
     <#
     .SYNOPSIS
-    Will attempt to remove an app from the win32app registry key paths. Which will force the IME to update its status.
+    Will attempt to remove an app from the Win32App registry key paths, which forces the IME to update its status.
     This is akin to gpupdate for apps, essentially allowing you to force required and available apps to update their status.
     #>
-    [CmdletBinding()]
+
+    [CmdletBinding(SupportsShouldProcess = $true)]
     param (
         [Parameter(Mandatory = $true)]
         [string]$appId
     )
+
     Begin {
-        $win32AppKeys = Get-ChildItem -path HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps
-        $removeTheString = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\IntuneManagementExtension"
+        # Define the base registry key path and initialize variables
+        $win32AppKeys = Get-ChildItem -Path HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps
+        $removeTheString = "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\IntuneManagementExtension\\"
         $keysForDeletion = @()
         $propertiesForDeletion = @()
     }
+
     Process {
+        # Iterate through each of the found registry keys
+        foreach ($keyItem in $win32AppKeys) {
+            $subkeys = Get-ChildItem -Path ($keyItem.PSPath -replace "Microsoft.PowerShell.Core\\", "") -Recurse
 
-        foreach ($key in $win32AppKeys[0]) {
-            $subkeys = Get-ChildItem -path ( $key.PSPath -replace "Microsoft.PowerShell.Core\\", "" ) -Recurse
-
-            foreach ($subkey in $subkeys[0]) {
-                $currentKey = Split-Path $subkey.Name -Leaf
-                $getProperties = Get-ItemProperty ($subkey.PSPath -replace "Microsoft.PowerShell.Core\\", "")
+            foreach ($subkeyItem in $subkeys) {
+                $currentKey = Split-Path $subkeyItem.Name -Leaf
+                $getProperties = Get-ItemProperty ($subkeyItem.PSPath -replace "Microsoft.PowerShell.Core\\", "")
                 $excludePSProperties = $getProperties.PSObject.Properties | Where-Object Name -notlike "PS*"
-            
+
+                # Check if the current key matches the appId
                 if ($currentKey -like "$appId*") {
-                    Write-Output "Found Key: $( $subkey.Name -replace $removeTheString )"
-                    $keysForDeletion += $subkey.Name
+                    Write-Output "Found Key: $( $subkeyItem.Name -replace $removeTheString )"
+                    $keysForDeletion += $subkeyItem.Name
                 }
+                # Check if any property names contain the appId
                 elseif ($excludePSProperties.Name -contains $appId) {
-                    Write-Output "Found property under: $( $subkey.Name -replace $removeTheString )"
+                    Write-Output "Found property under: $( $subkeyItem.Name -replace $removeTheString )"
                     $propertiesForDeletion += [PSCustomObject]@{
-                        Path = $subkey.Name
+                        Path = $subkeyItem.Name
                         Name = $appId
                     }
                 }
-
             }
         }
-
     }
+
     End {
-        $deletePrompt = Read-Host -Prompt "Happy to delete? (Y/N)"
-        if ($deletePrompt -eq 'n') {
-            Write-Output "Cancelling Delete operation"
-            return
-        }
-    
-        foreach ($keyItem in $keysForDeletion) {
-            Remove-Item -Path ($keyItem -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Confirm:$false -Recurse
-        }
-    
-        foreach ($propItem in $propertiesForDeletion) {
-            Remove-ItemProperty -Path ($propItem.Path -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Name $propItem.Name
-        }
+        # Confirm the deletion action with the user
+        if ($PSCmdlet.ShouldProcess("Attempting to delete all references of the App ID, $appId, from the registry", $appId, "delete")) {
 
-        Write-Output "All refrences found deleted"
+            $deletePrompt = Read-Host -Prompt "Happy to delete? (Y/N)"
+            if ($deletePrompt -eq 'n') {
+                Write-Output "Cancelling Delete operation"
+                return
+            }
+
+            foreach ($keyItem in $keysForDeletion) {
+                Remove-Item -Path ($keyItem -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Confirm:$false -Recurse
+            }
+
+            foreach ($propItem in $propertiesForDeletion) {
+                Remove-ItemProperty -Path ($propItem.Path -replace "HKEY_LOCAL_MACHINE", "HKLM:") -Name $propItem.Name
+            }
+
+            Write-Output "All references found have been deleted."
+        }
     }
 }
-<#
-(gci -path HKLM:\SOFTWARE\Microsoft\IntuneManagementExtension\Win32Apps -Recurse | `
-    ? Name -match "stringhere").PSPath | % {
-        Write-Host "Deleting key, $_ "
-        Remove-Item -Path $_ -Recurse | out-null
-}
-#>
 #endRegion
