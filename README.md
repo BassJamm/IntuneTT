@@ -11,6 +11,8 @@ Install the module using the ps gallery, `Install-Module -Name IntuneTT`.
 
 # Ideas
 
+- [ ] Get-Process using `gcim win32_process`.
+- [ ] Get Uninstall String from Registry for an application.
 - [ ] Upload to Azure Blob
 - [ ] Delete Win32 App from Win32Apps Reg key
 
