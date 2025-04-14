@@ -11,13 +11,13 @@ Install the module using the ps gallery, `Install-Module -Name IntuneTT`.
 
 # Ideas
 
-- [ ] Get-Process using `gcim win32_process`.
-- [ ] Get Uninstall String from Registry for an application.
 - [ ] Upload to Azure Blob
-- [ ] Delete Win32 App from Win32Apps Reg key
 
 ## Implemented
 
+- [X] Get-Process using `gcim win32_process`.
+- [X] Get Uninstall String from Registry for an application.
+- [X] Delete Win32 App from Win32Apps Reg key
 - [X] Export all MDMDiagnostic Data for review.[See here](#export-all-mdmd-diags).
 - [X] Appliation Assignment Report.
 - [X] Attestation Readiness Script.
@@ -58,7 +58,7 @@ same as what you get from Intune when clicking "collect diagnostics".
 ## Get-WinAppAssignments
 
 - Will collect the application assingmnets from intune.
-  
+
 ## Install-RequiredMGGraphModules
 
 - Will install the required modules for any thing in the scripts\functions in this module.

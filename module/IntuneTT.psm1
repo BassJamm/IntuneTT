@@ -1,51 +1,126 @@
-
-#################################
-#   Auth with Microsoft Graph   #
-#################################
-function Connect-ToMGGraph {
+###########################################
+#   Get Uninstall Strings from Registry   #
+###########################################
+function Get-UninstallStrings {
     <#
     .SYNOPSIS
-    Will check for correct modules and try to connect to graph ready for other commands to execute.
+    Will try to collect all uninstall strings from registry.
+    .NOTES
+    This will not output any applications that do not have a displayname.
     #>
+
     Begin {
-        #   Install Required Modules   #
+
+        $applications = @()
+
+        $registryKeys = @(
+            "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\",
+            "HKLM:\SOFTWARE\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\"
+        )
+    }
+    Process {
+        foreach ($key in $registryKeys) {
+
+            $subKeys = Get-ChildItem $key
+            $count = 0
+
+            foreach ($subkey in $subKeys) {
+                $count++
+
+                Write-Progress -PercentComplete ($count / $subKeys.count * 100) `
+                    -Status "Processing subkeys of $key" `
+                    -Activity "Processing subkey $count of $($subKeys.Count)"
+
+                $appInformation = Get-ItemProperty ( $subkey -replace "HKEY_LOCAL_MACHINE", "HKLM:" )
+
+                if($appInformation.displayname){
+
+                    $applications += [PSCustomObject]@{
+                        Name            = $appInformation.displayname
+                        Version         = $appInformation.DisplayVersion
+                        InstallDate     = if ($appInformation.InstallDate) { [datetime]::ParseExact($appInformation.InstallDate, "yyyyMMdd", $null) } else { $appInformation.InstallDate }
+                        UninstallString = $appInformation.UninstallString
+                        MSIExecCommand  = if ($appInformation.UninstallString -match "MsiExec.exe") { "MSIExec.exe " + ($appInformation.UninstallString -replace '/I|/X', '/x ' -replace "MsiExec.exe", "") + " /NORESTART" } else { "N\A" }
+                        Path            = $appInformation.PSPath -replace "Microsoft.PowerShell.Core\\Registry::", ""
+                    }
+                }
+
+            }
+
+            Write-Progress -Activity "Processing subkeys" -Completed
+        }
+    }
+
+    End {
+        return $applications
+    }
+}
+#endRegion
+
+#######################################
+#   Get Running Process information   #
+#######################################
+function Get-RunningProcessInfo {
+    <#
+    .SYNOPSIS
+    Will search the running processes and return the ones matching the searched for string.
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$searchString,
+        [Parameter()]
+        [switch]$outDefault
+    )
+
+    $gatheredProcesses = Get-CimInstance -ClassName Win32_Process | Where-Object {
+        $_.name -match $searchString -or
+        $_.CommandLine -match $searchString
+    }
+
+    if ($outDefault) {
+        $gatheredProcesses | Format-List -Property ProcessId, Name, CommandLine
+    }
+
+}
+#endRegion
+
+######################################
+#   Install-RequiredMGGraphModules   #
+######################################
+function Install-RequiredModule {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$InputValues
+    )
+    Begin {
         $requiredModules = @(
             "Microsoft.Graph.Authentication",
+            "Microsoft.Graph.DeviceManagement",
             "Microsoft.Graph.Beta.Devices.CorporateManagement",
-            "Microsoft.Graph.Beta.DeviceManagement"
+            "Microsoft.Graph.Beta.DeviceManagement",
+            "Microsoft.Graph.Compliance",
+            "Microsoft.Graph.Users",
+            "Microsoft.Graph.Groups"
         )
+    }
+    Process {
         foreach ($module in $requiredModules) {
-            if (!(Get-Module -ListAvailable -Name $module)) {
+            if ( -not (Get-Module -Name $module -ErrorAction SilentlyContinue) ) {
                 try {
-                    Install-Module -Name $module -Force -Scope CurrentUser -AllowClobber
+                    Write-Host "Installing Module $module"
+                    Install-Module -Name $module -Confirm:$false
                 }
                 catch {
                     $_
                 }
             }
-            else {
-                Write-Output "Module $module is already installed."
-            }
         }
-        #endregion
-
-    }
-    Process {
-        #   Connect To Graph   #
-        Start-Sleep -Seconds 2 # More pleasent experience for end user.
-        if ($null -eq (Get-MgContext).Account) {
-            Write-Output "Connecting to Graph now, a separate window should launch..."
-            Connect-MgGraph -NoWelcome
-        }
-        #endRegion
     }
     End {
-        Write-Output "You are connected!"
-        Get-MgContext | Select-Object Account, @{ l = 'PermissionScopes'; e = { $_.Scopes -join "`n" } } | Format-List
-        Start-Sleep -Seconds 2 # More pleasent experience for end user.
         return
     }
-
 }
 #endRegion
 
@@ -85,7 +160,8 @@ function Get-AutopilotDiagnosticInfo {
             try {
                 Write-Output "Installing Get-AutopilotDiagnosticsCommunity script..."
                 Install-Script -Name Get-AutopilotDiagnosticsCommunity -Force
-                $env:PATH += ";C:\Program Files\PowerShell\Scripts" # Manually update path to save restarting session.
+                # Manually update path to save restarting session.
+                $env:PATH += ";C:\Program Files\PowerShell\Scripts"
             }
             catch {
                 Write-Output "Error Downloading Script."
