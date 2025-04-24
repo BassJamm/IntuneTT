@@ -276,12 +276,14 @@ function Get-Win32AppReport {
     .SYNOPSIS
     Will attempt to install Get-Win32AppResults Script from PSGallery and run it.
     #>
-    if (Get-InstalledScript -Name Get-Win32AppResult) {
+    if (Get-InstalledScript -Name Get-Win32AppResult -ErrorAction SilentlyContinue) {
         Get-Win32AppResult.ps1
     }
     else {
         try {
+            Write-Output "Installing Get-Win32AppResult.ps1, script from PSGallery, https://www.powershellgallery.com/packages/Get-Win32AppResult/"
             Install-Script -Name Get-Win32AppResult
+            Write-Output "Run the command, Get-Win32AppReport, again after this install"
         }
         catch {
             $_
@@ -326,7 +328,7 @@ function Get-PendingReboot {
 #################################
 #   Get App Assignment Groups   #
 #################################
-function Get-WinAppAssignments {
+function Get-AllIntuneAppAssignments {
     <#
     .SYNOPSIS
         Will attempt to install the Get-IntuneAppAssignments and run it.
@@ -336,7 +338,9 @@ function Get-WinAppAssignments {
     }
     else {
         try {
+            Write-Output "Installing script, Get-IntuneAppAssignments, from PSGallery, https://www.powershellgallery.com/packages/Get-IntuneAppAssignments"
             Install-Script -Name Get-IntuneAppAssignments
+            Write-Output "Run the command, Get-IntuneAppAssignments, again after this install"
         }
         catch {
             $_
