@@ -60,7 +60,7 @@ function Get-UninstallStrings {
 #######################################
 #   Get Running Process information   #
 #######################################
-function GetRunningProcessInfo {
+function Get-RunningProcessInfo {
     <#
     .SYNOPSIS
     Will search the running processes and return the ones matching the searched for string.
@@ -79,11 +79,11 @@ function GetRunningProcessInfo {
     }
 
     $propertySplat = @(
-        "ParentProcessId"
-        "ProcessId"
-        "ProcessName"
-        "CreationDate"
-        "CommandLine"
+        "ParentProcessId",
+        "ProcessId",
+        "ProcessName",
+        "CreationDate",
+        "CommandLine",
         @{n='WorkingSetSize(MB)'; e={($_.WorkingSetSize / 1MB)}}
     )
     if ($outDefault) {
