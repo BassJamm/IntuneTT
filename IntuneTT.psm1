@@ -1,7 +1,6 @@
 ###########################################
 #   Get Uninstall Strings from Registry   #
 ###########################################
-# TODO - Function updated, module needs updating, updated line 42
 function Get-UninstallStrings {
     <#
     .SYNOPSIS
