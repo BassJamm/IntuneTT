@@ -1,6 +1,7 @@
 ###########################################
 #   Get Uninstall Strings from Registry   #
 ###########################################
+# TODO - Function updated, module needs updating, updated line 42
 function Get-UninstallStrings {
     <#
     .SYNOPSIS
@@ -38,7 +39,7 @@ function Get-UninstallStrings {
                     $applications += [PSCustomObject]@{
                         Name            = $appInformation.displayname
                         Version         = $appInformation.DisplayVersion
-                        InstallDate     = if ($appInformation.InstallDate) { [datetime]::ParseExact($appInformation.InstallDate, "yyyyMMdd", $null) } else { $appInformation.InstallDate }
+                        InstallDate     = if ($appInformation.InstallDate -and ($appInformation.InstallDate -notmatch '\/') ) { [datetime]::ParseExact($appInformation.InstallDate, "yyyyMMdd", $null) } else { $appInformation.InstallDate }
                         UninstallString = $appInformation.UninstallString
                         MSIExecCommand  = if ($appInformation.UninstallString -match "MsiExec.exe") { "MSIExec.exe " + ($appInformation.UninstallString -replace '/I|/X', '/x ' -replace "MsiExec.exe", "") + " /NORESTART" } else { "N\A" }
                         Path            = $appInformation.PSPath -replace "Microsoft.PowerShell.Core\\Registry::", ""
