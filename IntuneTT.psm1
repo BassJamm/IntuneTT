@@ -41,7 +41,7 @@ function Get-UninstallStrings {
                         Version         = $appInformation.DisplayVersion
                         InstallDate     = if ($appInformation.InstallDate -and ($appInformation.InstallDate -notmatch '\/') ) { [datetime]::ParseExact($appInformation.InstallDate, "yyyyMMdd", $null) } else { $appInformation.InstallDate }
                         UninstallString = $appInformation.UninstallString
-                        MSIExecCommand  = if ($appInformation.UninstallString -match "MsiExec.exe") { "MSIExec.exe /x " + ("`"$(($appInformation.UninstallString -replace 'MSIExec.exe|/I|/X', '').Trim())`"") + " /QUIET /NORESTART /l*V `"C:\Windows\temp\$($appInformation.displayname)_Uninstall.log`"" } else { "N\A" }
+                        UninstallArgs  = if ($appInformation.UninstallString -match "MsiExec.exe") { ("`"$(($appInformation.UninstallString -replace 'MSIExec.exe|/I|/X', '').Trim())`"") + " /QUIET /NORESTART /l*V `"C:\Windows\temp\$($appInformation.displayname)_Uninstall.log`"" } else { "N\A" }
                         Path            = $appInformation.PSPath -replace "Microsoft.PowerShell.Core\\Registry::", ""
                     }
                 }
