@@ -75,8 +75,8 @@ function Get-RunningProcessInfo {
     )
 
     $gatheredProcesses = Get-CimInstance -ClassName Win32_Process | Where-Object {
-        $_.name -match $searchString -or
-        $_.CommandLine -match $searchString
+        $_.name -like "*$searchString*" -or
+        $_.CommandLine -like "*$searchString*"
     }
 
     $propertySplat = @(
@@ -89,7 +89,10 @@ function Get-RunningProcessInfo {
     )
     if ($outDefault) {
         $gatheredProcesses | Select-Object -Property $propertySplat | Format-List
+    } else {
+        $gatheredProcesses
     }
+
 }
 #endRegion
 
@@ -281,14 +284,14 @@ function Get-Win32AppReport {
         Get-Win32AppResult.ps1
     }
     else {
+        Write-Output "Trying to install Get-Win32AppResult.ps1, script from PSGallery, https://www.powershellgallery.com/packages/Get-Win32AppResult/"
         try {
-            Write-Output "Installing Get-Win32AppResult.ps1, script from PSGallery, https://www.powershellgallery.com/packages/Get-Win32AppResult/"
             Install-Script -Name Get-Win32AppResult
-            Write-Output "Run the command, Get-Win32AppReport, again after this install"
         }
         catch {
             $_
         }
+        Write-Output "Run the command, Get-Win32AppReport, again after this install"
     }
 
 }
